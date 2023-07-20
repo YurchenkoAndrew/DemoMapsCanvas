@@ -11,7 +11,7 @@ import { MapItem } from '../../entities/map-item';
 import { fabric } from 'fabric';
 import { Subscription } from 'rxjs';
 import { environment } from 'src/environments/environment.development';
-// import { IEvent, Image, Point } from 'fabric/fabric-impl';
+import { IEvent, Image, Point } from 'fabric/fabric-impl';
 import { MapData } from '../../entities/map-data';
 
 @Component({
@@ -21,11 +21,11 @@ import { MapData } from '../../entities/map-data';
 })
 export class MapItemComponent implements OnInit, AfterViewInit, OnDestroy {
   baseUrl = environment.baseUrl;
-  canvas?: fabric.Canvas;
+  canvas!: fabric.Canvas;
+  @ViewChild('canvasWrapper') wrapper?: ElementRef<HTMLDivElement>
   mapItem?: MapItem;
   mapItemSub?: Subscription;
   mapItemImageSub?: Subscription;
-  image: HTMLImageElement = new Image();
   constructor(private service: MapItemService) {}
   ngAfterViewInit(): void {}
   ngOnDestroy(): void {
@@ -39,64 +39,43 @@ export class MapItemComponent implements OnInit, AfterViewInit, OnDestroy {
   ngOnInit(): void {
     this.mapItemSub = this.service.getMap(36).subscribe({
       next: (response: MapItem) => {
-        // this.initCanvas(response);
-        this.mapItemImageSub = this.service
-          .getImageMap(response.image)
-          .subscribe({
-            next: (response: Blob) => {
-              this.image.src = URL.createObjectURL(response);
-              this.initCanvas(this.image.src);
-            },
-          });
+        this.initCanvas(response);
       },
     });
   }
 
-  private initCanvas(imageSrc: string): void {
-    this.image.src = imageSrc;
-    this.image.onload = () => {
-      this.canvas = new fabric.Canvas('canvas', {
-        selection: false,
-        width: 500,
-        height: 500,
-      });
-    };
-    this._gettingAnImageForCanvasBacking(imageSrc);
-  }
-
-  private _gettingAnImageForCanvasBacking(imageSrc: string): void {
-    const imageInstance = new fabric.Image(imageSrc, {
-      left: 0,
-      top: 0,
-      scaleX: 1,
-      scaleY: 1,
-      selectable: false,
+  private initCanvas(mapItem: MapItem): void {
+    this.canvas = new fabric.Canvas('canvas', {
+      selection: false,
+      width: this.wrapper?.nativeElement.offsetWidth,
+      height: this.wrapper?.nativeElement.offsetHeight,
     });
-    this.canvas?.add(imageInstance);
-    this.canvas?.renderAll();
+    this._gettingAnImageForCanvasBacking(mapItem);
   }
 
   // Getting the image for the map background
-  // private _gettingAnImageForCanvasBacking(mapItemResponse: MapItem): void {
-  //   fabric.Image.fromURL(
-  //     this.baseUrl + mapItemResponse.image,
-  //     (canvasImageBg: Image) => {
-  //       const image: fabric.Object = canvasImageBg.set({
-  //         left: 0,
-  //         top: 0,
-  //         selectable: false,
-  //         scaleX: 1,
-  //         scaleY: 1,
-  //       });
-  //       // Set the resulting image to the background of the map
-  //       this._setImageInBackgroundCanvas(image);
-  //     }
-  //   );
-  // }
+  private _gettingAnImageForCanvasBacking(mapItem: MapItem): void {
+    fabric.Image.fromURL(
+      this.baseUrl + mapItem.image,
+      (canvasImageBg: Image) => {
+        const image: fabric.Object = canvasImageBg.set({
+          left: 0,
+          top: 0,
+          selectable: false,
+          scaleX: 1,
+          scaleY: 1,
+        });
+        // Set the resulting image to the background of the map
+        this._setImageInBackgroundCanvas(image);
+      }
+    );
+  }
 
   // Set the resulting image to the background of the map
-  //   private _setImageInBackgroundCanvas(image: fabric.Object): void {
-  //     this.canvas?.add(image);
-  //       this.canvas?.renderAll();
-  //   }
+  private _setImageInBackgroundCanvas(image: fabric.Object): void {
+    this.canvas?.add(image);
+    const zoomX = (this.wrapper!.nativeElement.offsetWidth / image.width!);
+    this.canvas.setZoom(zoomX);
+    this.canvas?.renderAll();
+  }
 }
